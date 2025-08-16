@@ -40,3 +40,23 @@
 .read-the-docs {
   color: #888;
 }
+
+/* cmdk overrides */
+.cmdk-root {
+  outline: none;
+}
+.cmdk-input {
+  @apply w-full px-3 py-2 text-sm border-b border-neutral-200/70 dark:border-neutral-800/70 bg-transparent outline-none;
+}
+.cmdk-list {
+  @apply max-h-96 overflow-auto;
+}
+.cmdk-item {
+  @apply px-3 py-2 text-sm cursor-pointer;
+}
+.cmdk-item[aria-selected="true"], .cmdk-item:hover {
+  @apply bg-neutral-100 dark:bg-neutral-800;
+}
+.cmdk-group-heading {
+  @apply px-3 pt-2 pb-1 text-xs uppercase text-neutral-500;
+}

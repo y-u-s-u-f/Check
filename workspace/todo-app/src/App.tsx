@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-dom'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk'
 import { useHotkeys } from 'react-hotkeys-hook'
@@ -9,7 +9,7 @@ import InboxView from './views/InboxView'
 import TodayView from './views/TodayView'
 import ScheduledView from './views/ScheduledView'
 import ProjectView from './views/ProjectView'
-import { ensureSeed } from './db'
+import { ensureSeed, db } from './db'
 import { initSchedulers, requestNotificationPermission } from './notifications'
 
 function ThemeToggle() {
@@ -30,7 +30,7 @@ function ThemeToggle() {
 
 function Header({ onOpenCommand }: { onOpenCommand: () => void }) {
 	return (
-		<header className="sticky top-0 z-10 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-white/75 dark:bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-white/50 dark:supports-[backdrop-filter]:bg-neutral-950/50">
+		<header className="sticky top-0 z-10 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-950/60 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-neutral-950/50">
 			<div className="mx-auto max-w-6xl px-3 h-14 flex items-center gap-3">
 				<Link to="/" className="text-sm font-semibold">Todos</Link>
 				<div className="flex-1" />
@@ -47,6 +47,9 @@ function Header({ onOpenCommand }: { onOpenCommand: () => void }) {
 
 function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
 	const navigate = useNavigate()
+	const inputRef = useRef<HTMLInputElement | null>(null)
+	const [query, setQuery] = useState('')
+	const [taskResults, setTaskResults] = useState<{ id: number; title: string; projectId: number }[]>([])
 	const commands = useMemo(() => ([
 		{ id: 'go:inbox', label: 'Go to Inbox', action: () => navigate('/') },
 		{ id: 'go:today', label: 'Go to Today', action: () => navigate('/today') },
@@ -55,15 +58,45 @@ function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean
 	]), [navigate])
 
 	useHotkeys(['ctrl+k', 'meta+k'], (e) => { e.preventDefault(); setOpen(true) }, { enableOnFormTags: true }, [setOpen])
+	useEffect(() => {
+		if (!open) return
+		const id = requestAnimationFrame(() => inputRef.current?.focus())
+		return () => cancelAnimationFrame(id)
+	}, [open])
+	useEffect(() => {
+		if (!open) return
+		const q = query.trim().toLowerCase()
+		if (!q) { setTaskResults([]); return }
+		const run = async () => {
+			const all = await db.tasks.toArray()
+			setTaskResults(all.filter(t => t.title.toLowerCase().includes(q)).slice(0, 8).map(t => ({ id: t.id!, title: t.title, projectId: t.projectId })))
+		}
+		run()
+	}, [open, query])
+
+	useEffect(() => {
+		function onKey(e: KeyboardEvent) {
+			if (e.key === 'Escape' && open) setOpen(false)
+		}
+		document.addEventListener('keydown', onKey)
+		return () => document.removeEventListener('keydown', onKey)
+	}, [open, setOpen])
 
 	return (
 		<div className={open ? 'fixed inset-0 z-50' : 'hidden'}>
-			<div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+			<div className="absolute inset-0 bg-black/40 backdrop-blur" onClick={() => setOpen(false)} />
 			<div className="absolute inset-x-0 top-24 mx-auto max-w-xl">
-				<Command className="card">
-					<CommandInput placeholder="Type a command or search..." />
+				<Command className="card overflow-hidden">
+					<CommandInput ref={inputRef as any} placeholder="Type a command or search tasks..." value={query} onValueChange={setQuery} />
 					<CommandList>
 						<CommandEmpty>No results found.</CommandEmpty>
+						{taskResults.length > 0 && (
+							<CommandGroup heading="Tasks">
+								{taskResults.map((t) => (
+									<CommandItem key={`task-${t.id}`} value={t.title} onSelect={() => { navigate(`/project/${t.projectId}`); setOpen(false) }}>{t.title}</CommandItem>
+								))}
+							</CommandGroup>
+						)}
 						<CommandGroup heading="Navigation">
 							{commands.map((c) => (
 								<CommandItem key={c.id} value={c.label} onSelect={() => { c.action(); setOpen(false) }}>{c.label}</CommandItem>

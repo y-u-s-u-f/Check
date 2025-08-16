@@ -5,6 +5,8 @@ import { formatShort } from '../utils/datetime'
 import { ChevronDown, ChevronRight, Circle, CircleCheck, Clock, Plus, Repeat, Tag } from 'lucide-react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { buildRRule } from '../utils/rrule'
+import DateTimeDialog from './DateTimeDialog'
+import TagPickerDialog from './TagPickerDialog'
 
 interface Props {
 	projectId: Id
@@ -17,6 +19,8 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 	const [tasks, setTasks] = useState<Task[]>([])
 	const [expanded, setExpanded] = useState<Record<Id, boolean>>({})
 	const inputRef = useRef<HTMLInputElement | null>(null)
+	const [dueDialogTaskId, setDueDialogTaskId] = useState<Id | null>(null)
+	const [tagDialogTaskId, setTagDialogTaskId] = useState<Id | null>(null)
 
 	useEffect(() => {
 		const load = async () => {
@@ -48,16 +52,8 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setExpanded(prev => ({ ...prev, [task.id!]: !prev[task.id!] }))
 	}
 
-	async function setDuePrompt(task: Task) {
-		const input = prompt('Set due (YYYY-MM-DD HH:mm). Leave empty to clear.', task.dueAt ? new Date(task.dueAt).toISOString().slice(0,16).replace('T',' ') : '')
-		if (input === null) return
-		let dueAt: string | null = null
-		const trimmed = input.trim()
-		if (trimmed) {
-			const parsed = new Date(trimmed)
-			if (!isNaN(parsed.getTime())) dueAt = parsed.toISOString()
-		}
-		await db.tasks.update(task.id!, { dueAt, updatedAt: Date.now() })
+	async function setDue(task: Task, iso: string | null) {
+		await db.tasks.update(task.id!, { dueAt: iso, updatedAt: Date.now() })
 		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 		setTasks(list)
 	}
@@ -76,10 +72,7 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setTasks(list)
 	}
 
-	async function setTagsPrompt(task: Task) {
-		const val = prompt('Comma-separated tags', (task.tagNames ?? []).join(', '))
-		if (val === null) return
-		const tagNames = val.split(',').map(s => s.trim()).filter(Boolean)
+	async function setTags(task: Task, tagNames: string[]) {
 		await db.tasks.update(task.id!, { tagNames, updatedAt: Date.now() })
 		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 		setTasks(list)
@@ -112,9 +105,9 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 							</div>
 						</div>
 						<div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-							<button className="btn px-2 py-1" title="Set due" onClick={() => setDuePrompt(t)}><Clock size={14}/></button>
+							<button className="btn px-2 py-1" title="Set due" onClick={() => setDueDialogTaskId(t.id!)}><Clock size={14}/></button>
 							<button className="btn px-2 py-1" title="Repeat" onClick={() => setRecurrencePrompt(t)}><Repeat size={14}/></button>
-							<button className="btn px-2 py-1" title="Tags" onClick={() => setTagsPrompt(t)}><Tag size={14}/></button>
+							<button className="btn px-2 py-1" title="Tags" onClick={() => setTagDialogTaskId(t.id!)}><Tag size={14}/></button>
 						</div>
 					</div>
 					{expanded[t.id!] && (
@@ -135,6 +128,32 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 					}
 				}} />
 			</div>
+
+			{/* Dialogs */}
+			{dueDialogTaskId !== null && (
+				<DateTimeDialog
+					open={true}
+					initialIso={tasks.find(t => t.id === dueDialogTaskId)?.dueAt ?? null}
+					onSave={async (iso) => {
+						const task = tasks.find(t => t.id === dueDialogTaskId)
+						if (task) await setDue(task, iso)
+						setDueDialogTaskId(null)
+					}}
+					onClose={() => setDueDialogTaskId(null)}
+				/>
+			)}
+			{tagDialogTaskId !== null && (
+				<TagPickerDialog
+					open={true}
+					initialTagNames={tasks.find(t => t.id === tagDialogTaskId)?.tagNames ?? []}
+					onSave={async (names) => {
+						const task = tasks.find(t => t.id === tagDialogTaskId)
+						if (task) await setTags(task, names)
+						setTagDialogTaskId(null)
+					}}
+					onClose={() => setTagDialogTaskId(null)}
+				/>
+			)}
 		</div>
 	)
 }

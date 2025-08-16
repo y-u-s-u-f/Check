@@ -25,7 +25,7 @@ body {
     @apply rounded-xl border border-neutral-200/70 dark:border-neutral-800/70 bg-white/70 dark:bg-neutral-900/50 shadow-soft;
   }
   .btn {
-    @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border border-neutral-300/70 dark:border-neutral-700/60 bg-white hover:bg-neutral-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 shadow-soft;
+    @apply inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium border border-neutral-300/70 dark:border-neutral-700/60 bg-white/90 hover:bg-white dark:bg-neutral-900/70 dark:hover:bg-neutral-800 shadow-soft backdrop-blur supports-[backdrop-filter]:bg-white/70 dark:supports-[backdrop-filter]:bg-neutral-900/60;
   }
   .btn-primary {
     @apply btn border-brand-600 bg-brand-600 text-white hover:bg-brand-700;
