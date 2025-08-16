@@ -10,6 +10,7 @@ import DatePicker from './DatePicker'
 import TagPicker from './TagPicker'
 import RecurrencePicker from './RecurrencePicker'
 import SchedulePicker from './SchedulePicker'
+import TaskActions from './TaskActions'
 
 interface Props {
 	projectId: Id
@@ -49,11 +50,11 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 			// Mark as completing for animation
 			setCompletingTasks(prev => new Set(prev).add(task.id!))
 			
-			// Wait for animation
+			// Fast completion feedback
 			setTimeout(async () => {
 				await db.tasks.update(task.id!, { isCompleted: true, updatedAt: Date.now(), completedAt: new Date().toISOString() })
 				
-				// Wait a bit more then move to completed
+				// Quick removal from list
 				setTimeout(async () => {
 					setCompletingTasks(prev => {
 						const newSet = new Set(prev)
@@ -62,8 +63,8 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 					})
 					const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 					setTasks(list)
-				}, 1500)
-			}, 500)
+				}, 300)
+			}, 200)
 		} else {
 			// Uncompleting - immediate
 			await db.tasks.update(task.id!, { isCompleted: false, updatedAt: Date.now(), completedAt: null })
@@ -105,6 +106,11 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setTasks(list)
 	}
 
+	async function refreshTasks() {
+		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
+		setTasks(list)
+	}
+
 	return (
 		<div className="space-y-1">
 			<AnimatePresence>
@@ -116,15 +122,16 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 							layout
 							initial={{ opacity: 1, scale: 1 }}
 							animate={{ 
-								opacity: isCompleting ? 0.6 : 1,
-								scale: isCompleting ? 0.95 : 1,
-								backgroundColor: isCompleting ? '#10b981' : 'transparent'
+								opacity: isCompleting ? 1 : 1,
+								scale: isCompleting ? 1.02 : 1,
+								backgroundColor: isCompleting ? 'rgb(34, 197, 94)' : 'transparent',
+								transition: { duration: 0.2, ease: "easeOut" }
 							}}
 							exit={{ 
 								opacity: 0, 
-								scale: 0.8,
-								x: 300,
-								transition: { duration: 0.3 } 
+								scale: 0.9,
+								x: 100,
+								transition: { duration: 0.2, ease: "easeIn" } 
 							}}
 							className="group rounded-md px-2 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
 						>
@@ -174,6 +181,7 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 							<DatePicker value={t.dueAt} onChange={(date) => setDueDate(t, date)} placeholder="Due" />
 							<RecurrencePicker value={t.recurrence} onChange={(recurrence) => setRecurrence(t, recurrence)} />
 							<TagPicker value={t.tagNames ?? []} onChange={(tags) => setTags(t, tags)} />
+							<TaskActions task={t} onUpdate={refreshTasks} />
 						</div>
 					</div>
 					{expanded[t.id!] && (

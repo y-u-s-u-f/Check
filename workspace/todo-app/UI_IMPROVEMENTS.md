@@ -101,7 +101,40 @@ This document summarizes the comprehensive UI/UX improvements made to the "Check
 - **Efficient Queries**: Optimized database queries
 - **Small Bundle**: Minimal impact on bundle size
 
-## 🚀 Latest Major Updates
+## 🚀 Major Updates - Round 2
+
+### ✅ **Scheduling Overhaul**
+- **Full Date Picker**: Replaced hardcoded schedule options with complete calendar interface
+- **Time Selection**: Choose specific times for scheduled tasks
+- **Calendar Navigation**: Month/year navigation with visual date selection
+- **Quick Options**: Still have Today/Tomorrow/Next Week shortcuts
+
+### ✅ **Task Completion Experience**
+- **Faster Animation**: Reduced completion time from 2s to 500ms total
+- **Better Visual Feedback**: Improved scaling and color transitions
+- **Smoother Exit**: Better slide-out animation when moving to completed
+- **Immediate Satisfaction**: Instant visual feedback on completion
+
+### ✅ **Task Management Actions**
+- **Delete Tasks**: Proper delete functionality with confirmation
+- **Move Between Projects**: Drag-free moving with project picker
+- **Duplicate Tasks**: Create copies of tasks easily
+- **Context Menu**: Clean dropdown with all actions organized
+
+### ✅ **Emoji Picker Revolution**
+- **Visual Emoji Selection**: Beautiful grid-based emoji picker
+- **Category Navigation**: Organized by Objects, Activities, Nature, etc.
+- **Search Functionality**: Find emojis quickly
+- **Recent Emojis**: Smart recent selections
+- **Remove Option**: Easy emoji removal
+
+### ✅ **Pie Chart Fixes**
+- **Real-time Updates**: Chart updates automatically as tasks complete
+- **Accurate Calculations**: Fixed completion percentage tracking
+- **Live Refresh**: Refreshes every 2 seconds for accuracy
+- **Visual Polish**: Better styling and animations
+
+## 🚀 Previous Major Updates
 
 ### ✅ App Branding
 - **Renamed Application**: Changed from "Todos" to "Check" throughout the app

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { Edit2 } from 'lucide-react'
 import { db } from '../db'
 import TaskList from '../components/TaskList'
+import EmojiPicker from '../components/EmojiPicker'
 import type { Project, Task } from '../types'
 
 function PieChart({ completed, total }: { completed: number; total: number }) {
@@ -65,6 +66,10 @@ export default function ProjectView() {
 		}
 		
 		loadData()
+		
+		// Refresh tasks periodically to update the pie chart
+		const interval = setInterval(loadData, 2000)
+		return () => clearInterval(interval)
 	}, [projectId])
 
 	const completedTasks = tasks.filter(t => t.isCompleted).length
@@ -89,16 +94,10 @@ export default function ProjectView() {
 	return (
 		<div className="p-4">
 			<div className="flex items-center gap-4 mb-6">
-				<button
-					onClick={() => {
-						const emoji = prompt('Choose an emoji for this project:', project.emoji || '📁')
-						if (emoji) updateProjectEmoji(emoji)
-					}}
-					className="text-3xl hover:scale-110 transition-transform cursor-pointer"
-					title="Change emoji"
-				>
-					{project.emoji || '📁'}
-				</button>
+				<EmojiPicker
+					value={project.emoji}
+					onChange={(emoji) => updateProjectEmoji(emoji || '📁')}
+				/>
 				
 				<div className="flex-1">
 					{isEditingName ? (
