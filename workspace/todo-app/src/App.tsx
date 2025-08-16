@@ -9,6 +9,8 @@ import InboxView from './views/InboxView'
 import TodayView from './views/TodayView'
 import ScheduledView from './views/ScheduledView'
 import ProjectView from './views/ProjectView'
+import CompletedView from './views/CompletedView'
+import DeletedView from './views/DeletedView'
 import { ensureSeed, db } from './db'
 import { initSchedulers, requestNotificationPermission } from './notifications'
 import type { Task, Project } from './types'
@@ -34,7 +36,7 @@ function Header({ onOpenCommand }: { onOpenCommand: () => void }) {
 	return (
 		<header className="sticky top-0 z-10 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-white/75 dark:bg-neutral-950/70 backdrop-blur supports-[backdrop-filter]:bg-white/50 dark:supports-[backdrop-filter]:bg-neutral-950/50">
 			<div className="mx-auto max-w-6xl px-3 h-14 flex items-center gap-3">
-				<Link to="/" className="text-sm font-semibold">Todos</Link>
+				<Link to="/" className="text-sm font-semibold">Check</Link>
 				<div className="flex-1" />
 				<button className="btn" onClick={onOpenCommand} aria-label="Command">
 					<Search size={16} />
@@ -69,6 +71,8 @@ function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean
 		{ id: 'go:inbox', label: 'Go to Inbox', action: () => navigate('/'), type: 'navigation' },
 		{ id: 'go:today', label: 'Go to Today', action: () => navigate('/today'), type: 'navigation' },
 		{ id: 'go:scheduled', label: 'Go to Scheduled', action: () => navigate('/scheduled'), type: 'navigation' },
+		{ id: 'go:completed', label: 'Go to Completed', action: () => navigate('/completed'), type: 'navigation' },
+		{ id: 'go:deleted', label: 'Go to Deleted', action: () => navigate('/deleted'), type: 'navigation' },
 		{ id: 'open:settings', label: 'Open Settings', action: () => navigate('/settings'), type: 'navigation' },
 	]), [navigate])
 
@@ -111,13 +115,17 @@ function CommandPalette({ open, setOpen }: { open: boolean; setOpen: (v: boolean
 				onClick={() => setOpen(false)} 
 			/>
 			<div className="absolute inset-x-0 top-24 mx-auto max-w-2xl">
-				<Command className="card shadow-2xl border-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md">
-					<div className="flex items-center px-3 border-b border-neutral-200/70 dark:border-neutral-800/70">
-						<Search size={16} className="text-neutral-400" />
+				<Command className="card shadow-2xl border-0 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md overflow-hidden">
+					<div className="flex items-center px-4 py-3 border-b border-neutral-200/70 dark:border-neutral-800/70 bg-gradient-to-r from-blue-50/50 to-purple-50/50 dark:from-blue-950/20 dark:to-purple-950/20">
+						<div className="w-5 h-5 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center mr-3">
+							<Search size={12} className="text-white" />
+						</div>
 						<CommandInput 
 							placeholder="Search tasks, projects, or run commands..." 
-							className="flex-1 px-3 py-4 text-sm bg-transparent border-0 outline-none placeholder:text-neutral-400"
+							className="flex-1 text-sm bg-transparent border-0 outline-none placeholder:text-neutral-400 font-medium"
+							autoFocus
 						/>
+						<kbd className="px-2 py-1 text-xs text-neutral-500 bg-neutral-100 dark:bg-neutral-800 rounded">ESC</kbd>
 					</div>
 					<CommandList className="max-h-96 overflow-y-auto">
 						<CommandEmpty>
@@ -211,6 +219,8 @@ function Shell() {
 						<Route path="/" element={<InboxView />} />
 						<Route path="/today" element={<TodayView />} />
 						<Route path="/scheduled" element={<ScheduledView />} />
+						<Route path="/completed" element={<CompletedView />} />
+						<Route path="/deleted" element={<DeletedView />} />
 						<Route path="/project/:id" element={<ProjectView />} />
 					</Routes>
 				</main>

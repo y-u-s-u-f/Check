@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import type { Id, Task } from '../types'
 import { db } from '../db'
 import { formatShort } from '../utils/datetime'
-import { ChevronDown, ChevronRight, Circle, CircleCheck, Clock, Plus, Repeat } from 'lucide-react'
+import { ChevronDown, ChevronRight, Circle, CircleCheck, Clock, Plus } from 'lucide-react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { buildRRule } from '../utils/rrule'
 import DatePicker from './DatePicker'
 import TagPicker from './TagPicker'
+import RecurrencePicker from './RecurrencePicker'
+import SchedulePicker from './SchedulePicker'
 
 interface Props {
 	projectId: Id
@@ -18,6 +21,7 @@ interface Props {
 export default function TaskList({ projectId, sectionId = null, parentId = null, focusHotkey }: Props) {
 	const [tasks, setTasks] = useState<Task[]>([])
 	const [expanded, setExpanded] = useState<Record<Id, boolean>>({})
+	const [completingTasks, setCompletingTasks] = useState<Set<Id>>(new Set())
 	const inputRef = useRef<HTMLInputElement | null>(null)
 
 	useEffect(() => {
@@ -35,15 +39,37 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 
 	async function addTask(title: string, pId: Id, parent: Id | null, sec: Id | null) {
 		const now = Date.now()
-		await db.tasks.add({ title, projectId: pId, parentId: parent, sectionId: sec, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: [], recurrence: null, location: null, dueAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
+		await db.tasks.add({ title, projectId: pId, parentId: parent, sectionId: sec, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: [], recurrence: null, location: null, dueAt: null, scheduledAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone })
 		const list = await db.tasks.where({ projectId: pId }).filter(t => (t.parentId ?? null) === parent && (t.sectionId ?? null) === sec).toArray()
 		setTasks(list)
 	}
 
 	async function toggleDone(task: Task) {
-		await db.tasks.update(task.id!, { isCompleted: !task.isCompleted, updatedAt: Date.now() })
-		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
-		setTasks(list)
+		if (!task.isCompleted) {
+			// Mark as completing for animation
+			setCompletingTasks(prev => new Set(prev).add(task.id!))
+			
+			// Wait for animation
+			setTimeout(async () => {
+				await db.tasks.update(task.id!, { isCompleted: true, updatedAt: Date.now(), completedAt: new Date().toISOString() })
+				
+				// Wait a bit more then move to completed
+				setTimeout(async () => {
+					setCompletingTasks(prev => {
+						const newSet = new Set(prev)
+						newSet.delete(task.id!)
+						return newSet
+					})
+					const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
+					setTasks(list)
+				}, 1500)
+			}, 500)
+		} else {
+			// Uncompleting - immediate
+			await db.tasks.update(task.id!, { isCompleted: false, updatedAt: Date.now(), completedAt: null })
+			const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
+			setTasks(list)
+		}
 	}
 
 	async function toggleCollapse(task: Task) {
@@ -56,16 +82,19 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setTasks(list)
 	}
 
-	async function setRecurrencePrompt(task: Task) {
-		const preset = prompt('Recurs: none | daily | weekly | weekdays | monthly', task.recurrence?.preset ?? 'none')
-		if (preset === null) return
-		const p = preset.trim() as any
-		if (p === 'none') {
-			await db.tasks.update(task.id!, { recurrence: null, updatedAt: Date.now() })
+	async function setRecurrence(task: Task, recurrence: { preset: any; rrule?: string | null } | null) {
+		if (recurrence && recurrence.preset !== 'none') {
+			const rrule = buildRRule(recurrence.preset, new Date())
+			await db.tasks.update(task.id!, { recurrence: { preset: recurrence.preset, rrule }, updatedAt: Date.now() })
 		} else {
-			const rrule = buildRRule(p, new Date())
-			await db.tasks.update(task.id!, { recurrence: { preset: p, rrule }, updatedAt: Date.now() })
+			await db.tasks.update(task.id!, { recurrence: null, updatedAt: Date.now() })
 		}
+		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
+		setTasks(list)
+	}
+
+	async function setSchedule(task: Task, scheduledAt: string | null) {
+		await db.tasks.update(task.id!, { scheduledAt, updatedAt: Date.now() })
 		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 		setTasks(list)
 	}
@@ -78,8 +107,27 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 
 	return (
 		<div className="space-y-1">
-			{tasks.map((t) => (
-				<div key={t.id} className="group rounded-md px-2 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-900">
+			<AnimatePresence>
+				{tasks.map((t) => {
+					const isCompleting = completingTasks.has(t.id!)
+					return (
+						<motion.div 
+							key={t.id} 
+							layout
+							initial={{ opacity: 1, scale: 1 }}
+							animate={{ 
+								opacity: isCompleting ? 0.6 : 1,
+								scale: isCompleting ? 0.95 : 1,
+								backgroundColor: isCompleting ? '#10b981' : 'transparent'
+							}}
+							exit={{ 
+								opacity: 0, 
+								scale: 0.8,
+								x: 300,
+								transition: { duration: 0.3 } 
+							}}
+							className="group rounded-md px-2 py-1.5 hover:bg-neutral-50 dark:hover:bg-neutral-900 transition-colors"
+						>
 					<div className="flex items-center gap-2">
 						<button className="text-neutral-500" onClick={() => toggleDone(t)} aria-label="Complete">
 							{t.isCompleted ? <CircleCheck size={18} /> : <Circle size={18} />}
@@ -122,8 +170,9 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 							</div>
 						</div>
 						<div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-							<DatePicker value={t.dueAt} onChange={(date) => setDueDate(t, date)} />
-							<button className="btn px-2 py-1" title="Repeat" onClick={() => setRecurrencePrompt(t)}><Repeat size={14}/></button>
+							<SchedulePicker value={t.scheduledAt} onChange={(date) => setSchedule(t, date)} />
+							<DatePicker value={t.dueAt} onChange={(date) => setDueDate(t, date)} placeholder="Due" />
+							<RecurrencePicker value={t.recurrence} onChange={(recurrence) => setRecurrence(t, recurrence)} />
 							<TagPicker value={t.tagNames ?? []} onChange={(tags) => setTags(t, tags)} />
 						</div>
 					</div>
@@ -132,18 +181,25 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 							<TaskList projectId={projectId} sectionId={sectionId} parentId={t.id!} />
 						</div>
 					)}
-				</div>
-			))}
-			<div className="flex items-center gap-2 px-2 py-1.5">
-				<Plus size={16} className="text-neutral-500" />
-				<input ref={inputRef} className="w-full bg-transparent outline-none text-sm task-add-input" placeholder="Add a task" onKeyDown={async (e) => {
-					if (e.key === 'Enter') {
-						const title = (e.target as HTMLInputElement).value.trim()
-						if (!title) return
-						await addTask(title, projectId, parentId, sectionId)
-						;(e.target as HTMLInputElement).value = ''
-					}
-				}} />
+						</motion.div>
+					)
+				})}
+			</AnimatePresence>
+			<div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50/50 dark:bg-neutral-800/50 hover:bg-neutral-50 dark:hover:bg-neutral-800 focus-within:border-blue-500 focus-within:bg-white dark:focus-within:bg-neutral-900 transition-all">
+				<Plus size={16} className="text-neutral-400" />
+				<input 
+					ref={inputRef} 
+					className="w-full bg-transparent outline-none text-sm placeholder:text-neutral-400" 
+					placeholder="Add a task..." 
+					onKeyDown={async (e) => {
+						if (e.key === 'Enter') {
+							const title = (e.target as HTMLInputElement).value.trim()
+							if (!title) return
+							await addTask(title, projectId, parentId, sectionId)
+							;(e.target as HTMLInputElement).value = ''
+						}
+					}} 
+				/>
 			</div>
 		</div>
 	)

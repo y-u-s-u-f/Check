@@ -120,7 +120,7 @@ export default function TagPicker({ value, onChange, className = "" }: TagPicker
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 z-50 mt-1 w-80 card p-4 shadow-lg">
+        <div className="absolute top-full right-0 z-50 mt-1 w-80 card p-4 shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium">Manage tags</h3>
           </div>
