@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { Id, Task } from '../types'
 import { db } from '../db'
 import { formatShort } from '../utils/datetime'
-import { ChevronDown, ChevronRight, Circle, CircleCheck, Clock, Plus, Repeat, Tag } from 'lucide-react'
+import { ChevronDown, ChevronRight, Circle, CircleCheck, Clock, Plus, Repeat } from 'lucide-react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { buildRRule } from '../utils/rrule'
+import DatePicker from './DatePicker'
+import TagPicker from './TagPicker'
 
 interface Props {
 	projectId: Id
@@ -48,15 +50,7 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setExpanded(prev => ({ ...prev, [task.id!]: !prev[task.id!] }))
 	}
 
-	async function setDuePrompt(task: Task) {
-		const input = prompt('Set due (YYYY-MM-DD HH:mm). Leave empty to clear.', task.dueAt ? new Date(task.dueAt).toISOString().slice(0,16).replace('T',' ') : '')
-		if (input === null) return
-		let dueAt: string | null = null
-		const trimmed = input.trim()
-		if (trimmed) {
-			const parsed = new Date(trimmed)
-			if (!isNaN(parsed.getTime())) dueAt = parsed.toISOString()
-		}
+	async function setDueDate(task: Task, dueAt: string | null) {
 		await db.tasks.update(task.id!, { dueAt, updatedAt: Date.now() })
 		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 		setTasks(list)
@@ -76,10 +70,7 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 		setTasks(list)
 	}
 
-	async function setTagsPrompt(task: Task) {
-		const val = prompt('Comma-separated tags', (task.tagNames ?? []).join(', '))
-		if (val === null) return
-		const tagNames = val.split(',').map(s => s.trim()).filter(Boolean)
+	async function setTags(task: Task, tagNames: string[]) {
 		await db.tasks.update(task.id!, { tagNames, updatedAt: Date.now() })
 		const list = await db.tasks.where({ projectId }).filter(t => (t.parentId ?? null) === parentId && (t.sectionId ?? null) === sectionId).toArray()
 		setTasks(list)
@@ -105,16 +96,35 @@ export default function TaskList({ projectId, sectionId = null, parentId = null,
 									<div className="text-xs text-neutral-500 flex items-center gap-1"><Clock size={12}/>{formatShort(t.dueAt)}</div>
 								) : null}
 								{(t.tagNames ?? []).length > 0 && (
-									<div className="text-xs text-neutral-500 flex items-center gap-1">
-										{t.tagNames!.map((tag) => <span key={tag} className="px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800">#{tag}</span>)}
+									<div className="text-xs flex items-center gap-1">
+										{t.tagNames!.map((tag) => {
+											const tagColors = [
+												'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+												'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+												'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+												'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+												'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+												'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+											]
+											const hash = tag.split('').reduce((a, b) => {
+												a = ((a << 5) - a) + b.charCodeAt(0)
+												return a & a
+											}, 0)
+											const colorClass = tagColors[Math.abs(hash) % tagColors.length]
+											return (
+												<span key={tag} className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
+													#{tag}
+												</span>
+											)
+										})}
 									</div>
 								)}
 							</div>
 						</div>
 						<div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-							<button className="btn px-2 py-1" title="Set due" onClick={() => setDuePrompt(t)}><Clock size={14}/></button>
+							<DatePicker value={t.dueAt} onChange={(date) => setDueDate(t, date)} />
 							<button className="btn px-2 py-1" title="Repeat" onClick={() => setRecurrencePrompt(t)}><Repeat size={14}/></button>
-							<button className="btn px-2 py-1" title="Tags" onClick={() => setTagsPrompt(t)}><Tag size={14}/></button>
+							<TagPicker value={t.tagNames ?? []} onChange={(tags) => setTags(t, tags)} />
 						</div>
 					</div>
 					{expanded[t.id!] && (
