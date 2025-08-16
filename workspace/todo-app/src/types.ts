@@ -6,6 +6,7 @@ export interface Project {
 	id?: Id
 	name: string
 	color?: string | null
+	emoji?: string | null
 	createdAt: number
 	updatedAt: number
 }
@@ -42,6 +43,7 @@ export interface Task {
 	completedAt?: string | null
 	dueAt?: string | null
 	dueTimezone?: string | null
+	scheduledAt?: string | null
 	recurrence?: {
 		preset: RecurrencePreset
 		rrule?: string | null

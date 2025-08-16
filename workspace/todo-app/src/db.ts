@@ -14,7 +14,7 @@ export class TodoDB extends Dexie {
 		this.version(1).stores({
 			projects: '++id, name',
 			sections: '++id, projectId, name, sortOrder',
-			tasks: '++id, projectId, sectionId, parentId, dueAt, isCompleted',
+			tasks: '++id, projectId, sectionId, parentId, dueAt, scheduledAt, isCompleted',
 			tags: '++id, name',
 			settings: 'id'
 		})
@@ -27,11 +27,11 @@ export async function ensureSeed() {
 	const count = await db.projects.count()
 	if (count === 0) {
 		const now = Date.now()
-		const inboxId = await db.projects.add({ name: 'Inbox', createdAt: now, updatedAt: now, color: null })
+		const inboxId = await db.projects.add({ name: 'Inbox', createdAt: now, updatedAt: now, color: null, emoji: '📥' })
 		await db.settings.put({ id: 1, theme: 'light', accent: 'blue', enableTimeNotifications: true, enableLocationNotifications: false })
 		await db.tasks.bulkAdd([
-			{ title: 'Welcome to Minimalist Todo', projectId: inboxId, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: [], recurrence: null, location: null, dueAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-			{ title: 'Press Ctrl/Cmd + K to open commands', projectId: inboxId, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: ['tips'], recurrence: null, location: null, dueAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+			{ title: 'Welcome to Check', projectId: inboxId, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: [], recurrence: null, location: null, dueAt: null, scheduledAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+			{ title: 'Press Ctrl/Cmd + K to open commands', projectId: inboxId, createdAt: now, updatedAt: now, isCompleted: false, isCollapsed: false, tagNames: ['tips'], recurrence: null, location: null, dueAt: null, scheduledAt: null, dueTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
 		])
 	}
 }
